@@ -134,18 +134,18 @@ workflow RNAVAR {
     ch_versions = ch_versions.mix(PREPARE_GENOME.out.versions)
 
     ch_input_bam_files.map {
-        meta, fastq ->
-            def meta_clone = meta.clone()
-            meta_clone.id = meta_clone.id.split('_')[0..-2].join('_')
-            [ meta_clone, fastq ]
+        meta, bam ->
+            //def meta_clone = meta.clone()
+            meta_clone.id = bam.baseName //meta_clone.id.split('_')[0..-2].join('_')
+            [ meta_clone, bam ]
     }
     .groupTuple(by: [0])
     .branch {
-        meta, fastq ->
-            single  : fastq.size() == 1
-                return [ meta, fastq.flatten() ]
-            multiple: fastq.size() > 1
-                return [ meta, fastq.flatten() ]
+        meta, bam ->
+            single  : bam.size() == 1
+                return [ meta, bam.flatten() ]
+            multiple: bam.size() > 1
+                return [ meta, bam.flatten() ]
     }
     .set { ch_input_bam }
 
