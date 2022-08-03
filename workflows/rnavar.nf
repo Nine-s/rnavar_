@@ -133,8 +133,7 @@ workflow RNAVAR {
     ch_genome_bed = Channel.from([id:'genome.bed']).combine(PREPARE_GENOME.out.exon_bed)
     ch_versions = ch_versions.mix(PREPARE_GENOME.out.versions)
 
-
-    ch_input_bam_files.map {
+    ch_input_bam_files..map {
         meta, fastq ->
             def meta_clone = meta.clone()
             meta_clone.id = meta_clone.id.split('_')[0..-2].join('_')
@@ -149,6 +148,7 @@ workflow RNAVAR {
                 return [ meta, fastq.flatten() ]
     }
     .set { ch_input_bam }
+
     //
     // SUBWORKFLOW: Read in samplesheet, validate and stage input files
     //
@@ -250,7 +250,7 @@ workflow RNAVAR {
         // SUBWORKFLOW: Mark duplicates with GATK4
         //
         MARKDUPLICATES (
-            ch_input_bam
+            ch_input_bam.multiple
         )
         ch_input_bam             = MARKDUPLICATES.out.bam_bai
 
