@@ -208,13 +208,13 @@ workflow RNAVAR {
     // MODULE: Scatter one interval-list into many interval-files using GATK4 IntervalListTools
     //
     ch_interval_list_split = Channel.empty()
-    if (!params.skip_intervallisttools) {
-        GATK4_INTERVALLISTTOOLS(
-            ch_interval_list
-        )
-        ch_interval_list_split = GATK4_INTERVALLISTTOOLS.out.interval_list.map{ meta, bed -> [bed] }.flatten()
-    }
-    else ch_interval_list_split = ch_interval_list
+    //if (!params.skip_intervallisttools) {
+    GATK4_INTERVALLISTTOOLS(
+        ch_interval_list
+    )
+    ch_interval_list_split = GATK4_INTERVALLISTTOOLS.out.interval_list.map{ meta, bed -> [bed] }.flatten()
+    // }
+    // else ch_interval_list_split = ch_interval_list
 
     //
     // SUBWORKFLOW: Perform read alignment using STAR aligner
@@ -255,7 +255,7 @@ workflow RNAVAR {
         ch_input_bam             = MARKDUPLICATES.out.bam_bai
 
         //Gather QC reports
-        ch_reports                = ch_reports.mix(MARKDUPLICATES.out.stats.collect{it[1]}.ifEmpty([]))
+        //ch_reports                = ch_reports.mix(MARKDUPLICATES.out.stats.collect{it[1]}.ifEmpty([]))
         ch_reports                = ch_reports.mix(MARKDUPLICATES.out.metrics.collect{it[1]}.ifEmpty([]))
         ch_versions               = ch_versions.mix(MARKDUPLICATES.out.versions.first().ifEmpty(null))
 
@@ -405,38 +405,38 @@ workflow RNAVAR {
         // MODULE: VariantFiltration from GATK4
         // Filter variant calls based on certain criteria
         //
-        if (!params.skip_variantfiltration && !params.bam_csi_index ) {
+        //if (!params.skip_variantfiltration && !params.bam_csi_index ) {
 
-            GATK4_VARIANTFILTRATION(
-                ch_haplotypecaller_vcf_tbi,
-                PREPARE_GENOME.out.fasta,
-                PREPARE_GENOME.out.fai,
-                PREPARE_GENOME.out.dict
-            )
+        GATK4_VARIANTFILTRATION(
+            ch_haplotypecaller_vcf_tbi,
+            PREPARE_GENOME.out.fasta,
+            PREPARE_GENOME.out.fai,
+            PREPARE_GENOME.out.dict
+        )
 
-            ch_filtered_vcf = GATK4_VARIANTFILTRATION.out.vcf
-            ch_final_vcf    = ch_filtered_vcf
-            ch_versions     = ch_versions.mix(GATK4_VARIANTFILTRATION.out.versions.first().ifEmpty(null))
-        }
+        ch_filtered_vcf = GATK4_VARIANTFILTRATION.out.vcf
+        ch_final_vcf    = ch_filtered_vcf
+        ch_versions     = ch_versions.mix(GATK4_VARIANTFILTRATION.out.versions.first().ifEmpty(null))
+        //}
 
         //
         // SUBWORKFLOW: Annotate variants using snpEff and Ensembl VEP if enabled.
         //
-        if((!params.skip_variantannotation) && (params.annotate_tools) && (params.annotate_tools.contains('merge') || params.annotate_tools.contains('snpeff') || params.annotate_tools.contains('vep'))) {
-            ANNOTATE(
-                ch_final_vcf,
-                params.annotate_tools,
-                ch_snpeff_db,
-                ch_snpeff_cache,
-                ch_vep_genome,
-                ch_vep_species,
-                ch_vep_cache_version,
-                ch_vep_cache)
+        //if((!params.skip_variantannotation) && (params.annotate_tools) && (params.annotate_tools.contains('merge') || params.annotate_tools.contains('snpeff') || params.annotate_tools.contains('vep'))) {
+        ANNOTATE(
+            ch_final_vcf,
+            params.annotate_tools,
+            ch_snpeff_db,
+            ch_snpeff_cache,
+            ch_vep_genome,
+            ch_vep_species,
+            ch_vep_cache_version,
+            ch_vep_cache)
 
-            // Gather QC reports
-            ch_reports  = ch_reports.mix(ANNOTATE.out.reports)
-            ch_versions = ch_versions.mix(ANNOTATE.out.versions.first().ifEmpty(null))
-        }
+        // Gather QC reports
+        ch_reports  = ch_reports.mix(ANNOTATE.out.reports)
+        ch_versions = ch_versions.mix(ANNOTATE.out.versions.first().ifEmpty(null))
+        //}
 
     }
 
@@ -444,23 +444,23 @@ workflow RNAVAR {
     CUSTOM_DUMPSOFTWAREVERSIONS (ch_versions.unique().collectFile(name: 'collated_versions.yml'))
     ch_version_yaml = CUSTOM_DUMPSOFTWAREVERSIONS.out.mqc_yml.collect()
 
-    //
+    
     // MODULE: MultiQC
     // Present summary of reads, alignment, duplicates, BSQR stats for all samples as well as workflow summary/parameters as single report
-    //
-    // if (!params.skip_multiqc){
-    //     workflow_summary    = WorkflowRnavar.paramsSummaryMultiqc(workflow, summary_params)
-    //     ch_workflow_summary = Channel.value(workflow_summary)
-    //     ch_multiqc_files    =  Channel.empty().mix(ch_version_yaml,
-    //                                             ch_multiqc_custom_config.collect().ifEmpty([]),
-    //                                             ch_workflow_summary.collectFile(name: 'workflow_summary_mqc.yaml'),
-    //                                             ch_reports.collect(),
-    //                                             ch_multiqc_config,
-    //                                             ch_rnavar_logo)
+    
+    //if (!params.skip_multiqc){
+    workflow_summary    = WorkflowRnavar.paramsSummaryMultiqc(workflow, summary_params)
+    ch_workflow_summary = Channel.value(workflow_summary)
+    ch_multiqc_files    =  Channel.empty().mix(ch_version_yaml,
+                                            ch_multiqc_custom_config.collect().ifEmpty([]),
+                                            ch_workflow_summary.collectFile(name: 'workflow_summary_mqc.yaml'),
+                                            ch_reports.collect(),
+                                            ch_multiqc_config,
+                                            ch_rnavar_logo)
 
-    //     MULTIQC (ch_multiqc_files.collect())
-    //     multiqc_report = MULTIQC.out.report.toList()
-    // }
+    MULTIQC (ch_multiqc_files.collect())
+    multiqc_report = MULTIQC.out.report.toList()
+    //}
 
 }
 
