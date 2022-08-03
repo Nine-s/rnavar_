@@ -228,7 +228,6 @@ workflow RNAVAR {
     // ch_aligner_pca_multiqc        = Channel.empty()
     // ch_aligner_clustering_multiqc = Channel.empty()
 
-    //if (params.aligner == 'star') {
     //     ALIGN_STAR (
     //         ch_cat_fastq,
     //         PREPARE_GENOME.out.star_index,
@@ -438,7 +437,7 @@ workflow RNAVAR {
         ch_versions = ch_versions.mix(ANNOTATE.out.versions.first().ifEmpty(null))
         //}
 
-    }
+    
 
     ch_version_yaml = Channel.empty()
     CUSTOM_DUMPSOFTWAREVERSIONS (ch_versions.unique().collectFile(name: 'collated_versions.yml'))
@@ -462,6 +461,7 @@ workflow RNAVAR {
     multiqc_report = MULTIQC.out.report.toList()
     //}
 
+}
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
