@@ -98,6 +98,7 @@ ch_dbsnp                = params.dbsnp             ? Channel.fromPath(params.dbs
 ch_dbsnp_tbi            = params.dbsnp_tbi         ? Channel.fromPath(params.dbsnp_tbi).collect()           : Channel.empty()
 ch_known_indels         = params.known_indels      ? Channel.fromPath(params.known_indels).collect()        : Channel.empty()
 ch_known_indels_tbi     = params.known_indels_tbi  ? Channel.fromPath(params.known_indels_tbi).collect()    : Channel.empty()
+ch_input_bam     = Channel.fromPath(params.input_bam).collect()
 
 // Initialize varaint annotation associated channels
 ch_snpeff_db            = params.snpeff_db         ?:   Channel.empty()
@@ -135,46 +136,46 @@ workflow RNAVAR {
     //
     // SUBWORKFLOW: Read in samplesheet, validate and stage input files
     //
-    INPUT_CHECK (
-        ch_input
-    )
-    .reads
-    .map {
-        meta, fastq ->
-            def meta_clone = meta.clone()
-            meta_clone.id = meta_clone.id.split('_')[0..-2].join('_')
-            [ meta_clone, fastq ]
-    }
-    .groupTuple(by: [0])
-    .branch {
-        meta, fastq ->
-            single  : fastq.size() == 1
-                return [ meta, fastq.flatten() ]
-            multiple: fastq.size() > 1
-                return [ meta, fastq.flatten() ]
-    }
-    .set { ch_fastq }
-    ch_versions = ch_versions.mix(INPUT_CHECK.out.versions)
+    // INPUT_CHECK (
+    //     ch_input
+    // )
+    // .reads
+    // .map {
+    //     meta, fastq ->
+    //         def meta_clone = meta.clone()
+    //         meta_clone.id = meta_clone.id.split('_')[0..-2].join('_')
+    //         [ meta_clone, fastq ]
+    // }
+    // .groupTuple(by: [0])
+    // .branch {
+    //     meta, fastq ->
+    //         single  : fastq.size() == 1
+    //             return [ meta, fastq.flatten() ]
+    //         multiple: fastq.size() > 1
+    //             return [ meta, fastq.flatten() ]
+    // }
+    // .set { ch_fastq }
+    // ch_versions = ch_versions.mix(INPUT_CHECK.out.versions)
 
     //
     // MODULE: Concatenate FastQ files from same sample if required
     //
-    CAT_FASTQ (
-        ch_fastq.multiple
-    )
-    .reads
-    .mix(ch_fastq.single)
-    .set { ch_cat_fastq }
-    ch_versions = ch_versions.mix(CAT_FASTQ.out.versions.first().ifEmpty(null))
+    // CAT_FASTQ (
+    //     ch_fastq.multiple
+    // )
+    // .reads
+    // .mix(ch_fastq.single)
+    // .set { ch_cat_fastq }
+    // ch_versions = ch_versions.mix(CAT_FASTQ.out.versions.first().ifEmpty(null))
 
     //
     // MODULE: Generate QC summary using FastQC
     //
-    FASTQC (
-        ch_cat_fastq
-    )
-    ch_reports  = ch_reports.mix(FASTQC.out.zip.collect{it[1]}.ifEmpty([]))
-    ch_versions = ch_versions.mix(FASTQC.out.versions.first())
+    // FASTQC (
+    //     ch_cat_fastq
+    // )
+    // ch_reports  = ch_reports.mix(FASTQC.out.zip.collect{it[1]}.ifEmpty([]))
+    // ch_versions = ch_versions.mix(FASTQC.out.versions.first())
 
     //
     // MODULE: Prepare the interval list from the GTF file using GATK4 BedToIntervalList
@@ -202,40 +203,40 @@ workflow RNAVAR {
     //
     // SUBWORKFLOW: Perform read alignment using STAR aligner
     //
-    ch_genome_bam                 = Channel.empty()
-    ch_genome_bam_index           = Channel.empty()
-    ch_samtools_stats             = Channel.empty()
-    ch_samtools_flagstat          = Channel.empty()
-    ch_samtools_idxstats          = Channel.empty()
-    ch_star_multiqc               = Channel.empty()
-    ch_aligner_pca_multiqc        = Channel.empty()
-    ch_aligner_clustering_multiqc = Channel.empty()
+    // ch_genome_bam                 = Channel.empty()
+    // ch_genome_bam_index           = Channel.empty()
+    // ch_samtools_stats             = Channel.empty()
+    // ch_samtools_flagstat          = Channel.empty()
+    // ch_samtools_idxstats          = Channel.empty()
+    // ch_star_multiqc               = Channel.empty()
+    // ch_aligner_pca_multiqc        = Channel.empty()
+    // ch_aligner_clustering_multiqc = Channel.empty()
 
-    if (params.aligner == 'star') {
-        ALIGN_STAR (
-            ch_cat_fastq,
-            PREPARE_GENOME.out.star_index,
-            PREPARE_GENOME.out.gtf,
-            params.star_ignore_sjdbgtf,
-            seq_platform,
-            seq_center
-        )
-        ch_genome_bam        = ALIGN_STAR.out.bam
-        ch_genome_bam_index  = ALIGN_STAR.out.bai
-        ch_transcriptome_bam = ALIGN_STAR.out.bam_transcript
+    // if (params.aligner == 'star') {
+    //     ALIGN_STAR (
+    //         ch_cat_fastq,
+    //         PREPARE_GENOME.out.star_index,
+    //         PREPARE_GENOME.out.gtf,
+    //         params.star_ignore_sjdbgtf,
+    //         seq_platform,
+    //         seq_center
+    //     )
+    //     ch_genome_bam        = ALIGN_STAR.out.bam
+    //     ch_genome_bam_index  = ALIGN_STAR.out.bai
+    //     ch_transcriptome_bam = ALIGN_STAR.out.bam_transcript
 
-        // Gather QC reports
-        ch_reports           = ch_reports.mix(ALIGN_STAR.out.stats.collect{it[1]}.ifEmpty([]))
-        ch_reports           = ch_reports.mix(ALIGN_STAR.out.log_final.collect{it[1]}.ifEmpty([]))
-        ch_versions          = ch_versions.mix(ALIGN_STAR.out.versions.first().ifEmpty(null))
+    //     // Gather QC reports
+    //     ch_reports           = ch_reports.mix(ALIGN_STAR.out.stats.collect{it[1]}.ifEmpty([]))
+    //     ch_reports           = ch_reports.mix(ALIGN_STAR.out.log_final.collect{it[1]}.ifEmpty([]))
+    //     ch_versions          = ch_versions.mix(ALIGN_STAR.out.versions.first().ifEmpty(null))
 
         //
         // SUBWORKFLOW: Mark duplicates with GATK4
         //
         MARKDUPLICATES (
-            ch_genome_bam
+            ch_input_bam
         )
-        ch_genome_bam             = MARKDUPLICATES.out.bam_bai
+        ch_input_bam             = MARKDUPLICATES.out.bam_bai
 
         //Gather QC reports
         ch_reports                = ch_reports.mix(MARKDUPLICATES.out.stats.collect{it[1]}.ifEmpty([]))
@@ -248,7 +249,7 @@ workflow RNAVAR {
         //
         ch_splitncigar_bam_bai = Channel.empty()
         SPLITNCIGAR (
-            ch_genome_bam,
+            ch_input_bam,
             PREPARE_GENOME.out.fasta,
             PREPARE_GENOME.out.fai,
             PREPARE_GENOME.out.dict,
@@ -431,19 +432,19 @@ workflow RNAVAR {
     // MODULE: MultiQC
     // Present summary of reads, alignment, duplicates, BSQR stats for all samples as well as workflow summary/parameters as single report
     //
-    if (!params.skip_multiqc){
-        workflow_summary    = WorkflowRnavar.paramsSummaryMultiqc(workflow, summary_params)
-        ch_workflow_summary = Channel.value(workflow_summary)
-        ch_multiqc_files    =  Channel.empty().mix(ch_version_yaml,
-                                                ch_multiqc_custom_config.collect().ifEmpty([]),
-                                                ch_workflow_summary.collectFile(name: 'workflow_summary_mqc.yaml'),
-                                                ch_reports.collect(),
-                                                ch_multiqc_config,
-                                                ch_rnavar_logo)
+    // if (!params.skip_multiqc){
+    //     workflow_summary    = WorkflowRnavar.paramsSummaryMultiqc(workflow, summary_params)
+    //     ch_workflow_summary = Channel.value(workflow_summary)
+    //     ch_multiqc_files    =  Channel.empty().mix(ch_version_yaml,
+    //                                             ch_multiqc_custom_config.collect().ifEmpty([]),
+    //                                             ch_workflow_summary.collectFile(name: 'workflow_summary_mqc.yaml'),
+    //                                             ch_reports.collect(),
+    //                                             ch_multiqc_config,
+    //                                             ch_rnavar_logo)
 
-        MULTIQC (ch_multiqc_files.collect())
-        multiqc_report = MULTIQC.out.report.toList()
-    }
+    //     MULTIQC (ch_multiqc_files.collect())
+    //     multiqc_report = MULTIQC.out.report.toList()
+    // }
 
 }
 
