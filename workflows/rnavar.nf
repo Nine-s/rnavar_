@@ -228,7 +228,7 @@ workflow RNAVAR {
     // ch_aligner_pca_multiqc        = Channel.empty()
     // ch_aligner_clustering_multiqc = Channel.empty()
 
-    if (params.aligner == 'star') {
+    //if (params.aligner == 'star') {
     //     ALIGN_STAR (
     //         ch_cat_fastq,
     //         PREPARE_GENOME.out.star_index,
@@ -462,7 +462,6 @@ workflow RNAVAR {
     multiqc_report = MULTIQC.out.report.toList()
     //}
 
-}
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
