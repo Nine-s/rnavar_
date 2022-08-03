@@ -98,7 +98,7 @@ ch_dbsnp                = params.dbsnp             ? Channel.fromPath(params.dbs
 ch_dbsnp_tbi            = params.dbsnp_tbi         ? Channel.fromPath(params.dbsnp_tbi).collect()           : Channel.empty()
 ch_known_indels         = params.known_indels      ? Channel.fromPath(params.known_indels).collect()        : Channel.empty()
 ch_known_indels_tbi     = params.known_indels_tbi  ? Channel.fromPath(params.known_indels_tbi).collect()    : Channel.empty()
-ch_input_bam     = Channel.fromPath(params.input_bam).collect()
+ch_input_bam_files     = Channel.fromPath(params.input_bam).collect()
 
 // Initialize varaint annotation associated channels
 ch_snpeff_db            = params.snpeff_db         ?:   Channel.empty()
@@ -133,6 +133,22 @@ workflow RNAVAR {
     ch_genome_bed = Channel.from([id:'genome.bed']).combine(PREPARE_GENOME.out.exon_bed)
     ch_versions = ch_versions.mix(PREPARE_GENOME.out.versions)
 
+
+    ch_input_bam_files.map {
+        meta, fastq ->
+            def meta_clone = meta.clone()
+            meta_clone.id = meta_clone.id.split('_')[0..-2].join('_')
+            [ meta_clone, fastq ]
+    }
+    .groupTuple(by: [0])
+    .branch {
+        meta, fastq ->
+            single  : fastq.size() == 1
+                return [ meta, fastq.flatten() ]
+            multiple: fastq.size() > 1
+                return [ meta, fastq.flatten() ]
+    }
+    .set { ch_input_bam }
     //
     // SUBWORKFLOW: Read in samplesheet, validate and stage input files
     //
