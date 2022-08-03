@@ -135,7 +135,7 @@ workflow RNAVAR {
 
     ch_input_bam_files.map {
         meta, bam ->
-            def meta_clone = meta.clone()
+            def meta_clone = [id: bam.baseName]
             meta_clone.id = bam.baseName //meta_clone.id.split('_')[0..-2].join('_')
             [ meta_clone, bam ]
     }
