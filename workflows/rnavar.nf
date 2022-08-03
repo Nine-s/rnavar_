@@ -133,7 +133,7 @@ workflow RNAVAR {
     ch_genome_bed = Channel.from([id:'genome.bed']).combine(PREPARE_GENOME.out.exon_bed)
     ch_versions = ch_versions.mix(PREPARE_GENOME.out.versions)
 
-    ch_input_bam_files..map {
+    ch_input_bam_files.map {
         meta, fastq ->
             def meta_clone = meta.clone()
             meta_clone.id = meta_clone.id.split('_')[0..-2].join('_')
@@ -160,7 +160,7 @@ workflow RNAVAR {
     //     meta, fastq ->
     //         def meta_clone = meta.clone()
     //         meta_clone.id = meta_clone.id.split('_')[0..-2].join('_')
-    //         [ meta_clone, fastq ]
+            [ meta_clone, fastq ]
     // }
     // .groupTuple(by: [0])
     // .branch {
