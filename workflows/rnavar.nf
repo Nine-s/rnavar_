@@ -136,7 +136,7 @@ workflow RNAVAR {
     ch_versions = ch_versions.mix(PREPARE_GENOME.out.versions)
 
 
-    ch_input_bam_files.flatMap { it -> [ meta: [id: it.baseName, single_end: false], bam: it ] }
+    ch_input_bam_files.flatMap { it -> [ meta: [id: it.baseName, single_end: false], bam: it ] }.view().set{ch_input_bam}
     // .map {
     //     meta, fastq ->
     //         def meta_clone = meta.clone()
@@ -154,7 +154,7 @@ workflow RNAVAR {
     // ch_input_bam_files.map{
     //     TODOOOOO
     // }.set{ch_input_bam}
-    ch_input_bam = ch_input_bam_files
+    //ch_input_bam = ch_input_bam_files
     // MODULE: Prepare the interval list from the GTF file using GATK4 BedToIntervalList
     //
     ch_interval_list = Channel.empty()
