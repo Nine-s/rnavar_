@@ -98,7 +98,7 @@ ch_dbsnp                = params.dbsnp             ? Channel.fromPath(params.dbs
 ch_dbsnp_tbi            = params.dbsnp_tbi         ? Channel.fromPath(params.dbsnp_tbi).collect()           : Channel.empty()
 ch_known_indels         = params.known_indels      ? Channel.fromPath(params.known_indels).collect()        : Channel.empty()
 ch_known_indels_tbi     = params.known_indels_tbi  ? Channel.fromPath(params.known_indels_tbi).collect()    : Channel.empty()
-ch_input_bam_files     = Channel.fromPath(params.input_bam).collect()
+
 
 // Initialize varaint annotation associated channels
 ch_snpeff_db            = params.snpeff_db         ?:   Channel.empty()
@@ -118,6 +118,8 @@ def multiqc_report = []
 */
 
 workflow RNAVAR {
+
+    ch_input_bam_files     = Channel.fromPath(params.input_bam).collect()
 
     // To gather all QC reports for MultiQC
     ch_reports  = Channel.empty()
@@ -148,6 +150,7 @@ workflow RNAVAR {
                 return [ meta, bam.flatten() ]
     }
     .set { ch_input_bam }
+    .view()
 
     //
     // SUBWORKFLOW: Read in samplesheet, validate and stage input files
@@ -245,9 +248,9 @@ workflow RNAVAR {
     //     ch_reports           = ch_reports.mix(ALIGN_STAR.out.log_final.collect{it[1]}.ifEmpty([]))
     //     ch_versions          = ch_versions.mix(ALIGN_STAR.out.versions.first().ifEmpty(null))
 
-        //
-        // SUBWORKFLOW: Mark duplicates with GATK4
-        //
+    //
+    // SUBWORKFLOW: Mark duplicates with GATK4
+    //
     MARKDUPLICATES (
         ch_input_bam.multiple
     )
