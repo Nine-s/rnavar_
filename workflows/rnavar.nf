@@ -149,7 +149,7 @@ workflow RNAVAR {
             multiple: bam.size() > 1
                 return [ meta, bam.flatten() ]
     }
-    .set { ch_input_bam }
+    .set { ch_input_bam }.view()
     
 
     //
