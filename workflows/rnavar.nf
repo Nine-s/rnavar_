@@ -136,7 +136,7 @@ workflow RNAVAR {
     ch_versions = ch_versions.mix(PREPARE_GENOME.out.versions)
 
 
-    ch_input_bam= ch_input_bam_files.each { it -> [ meta: [id: it.baseName], bam: it ] }.view()
+    ch_input_bam = ch_input_bam_files.each { it -> [ meta: [id: it.baseName], bam: it ] }.view()
 
     //ch_input_bam = ch_input_bam_files
     ch_input_bam.view()
@@ -166,7 +166,7 @@ workflow RNAVAR {
     // SUBWORKFLOW: Mark duplicates with GATK4
     //
     MARKDUPLICATES (
-        ch_input_bam//.multiple
+        ch_input_bam.multiple
     )
     ch_input_bam             = MARKDUPLICATES.out.bam_bai
 
