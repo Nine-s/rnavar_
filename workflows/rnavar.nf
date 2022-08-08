@@ -169,7 +169,7 @@ workflow RNAVAR {
     // SUBWORKFLOW: Mark duplicates with GATK4
     //
     MARKDUPLICATES (
-        ch_input_bam.multiple
+        ch_input_bam//.multiple
     )
     ch_input_bam             = MARKDUPLICATES.out.bam_bai
 
