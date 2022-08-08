@@ -119,8 +119,7 @@ def multiqc_report = []
 
 workflow RNAVAR {
 
-    ch_input_bam  = Channel.fromPath(params.input_bam).collect().view()
-    //ch_input_bam_files  = Channel.fromPath(params.input_bam).collect().view()
+    ch_input_bam_files  = Channel.fromPath(params.input_bam).collect().view()
 
     // To gather all QC reports for MultiQC
     ch_reports  = Channel.empty()
@@ -136,12 +135,12 @@ workflow RNAVAR {
     ch_genome_bed = Channel.from([id:'genome.bed']).combine(PREPARE_GENOME.out.exon_bed)
     ch_versions = ch_versions.mix(PREPARE_GENOME.out.versions)
 
-    // ch_input_bam_files.map {
-    //     meta, bam ->
-    //         def meta_clone = [id: bam.baseName]
-    //         meta_clone.id = bam.baseName //meta_clone.id.split('_')[0..-2].join('_')
-    //         [ meta_clone, bam ]
-    // }
+    ch_input_bam_files.map {
+        meta, bam ->
+            def meta_clone = [id: bam.baseName]
+            meta_clone.id = bam.baseName //meta_clone.id.split('_')[0..-2].join('_')
+            [ meta_clone, bam ]
+    }.set { ch_input_bam }.view()
     // .groupTuple(by: [0])
     // .branch {
     //     meta, bam ->
@@ -150,7 +149,7 @@ workflow RNAVAR {
     //         multiple: bam.size() > 1
     //             return [ meta, bam.flatten() ]
     // }
-    // .set { ch_input_bam }.view()
+    
     
 
     //
@@ -253,7 +252,7 @@ workflow RNAVAR {
     // SUBWORKFLOW: Mark duplicates with GATK4
     //
     MARKDUPLICATES (
-        ch_input_bam//.multiple
+        ch_input_bam.multiple
     )
     ch_input_bam             = MARKDUPLICATES.out.bam_bai
 
