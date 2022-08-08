@@ -139,13 +139,6 @@ workflow RNAVAR {
     ch_input_bam_files.flatMap { it -> [ meta: [id: it.baseName, single_end: false], bam: it ] }
     .map { meta, bam -> [ meta, bam ]}
     .groupTuple(by: [0])
-    .branch {
-        meta, bam ->
-            single  : bam.size() == 1
-                return [ meta, bam.flatten() ]
-            multiple: bam.size() > 1
-                return [ meta, bam.flatten() ]
-    }
     // }
     // .view()
     // .set{ch_input_bam}
