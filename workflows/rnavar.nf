@@ -136,7 +136,7 @@ workflow RNAVAR {
     ch_versions = ch_versions.mix(PREPARE_GENOME.out.versions)
 
 
-    ch_input_bam = ch_input_bam_files.map { it -> [ meta: [id: it.getBaseName()], bam: it ] }
+    ch_input_bam_files.map { it -> [ meta: [id: it.getBaseName()], bam: it ] }.set{ch_input_bam}
 
     //ch_input_bam = ch_input_bam_files
     ch_input_bam.view()
