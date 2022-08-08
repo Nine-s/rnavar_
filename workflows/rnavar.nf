@@ -119,7 +119,7 @@ def multiqc_report = []
 
 workflow RNAVAR {
 
-    ch_input_bam_files  = Channel.fromPath(params.input_bam).view()//.collect().view()
+    ch_input_bam_files  = Channel.fromPath(params.input_bam).collect().view()
 
     // To gather all QC reports for MultiQC
     ch_reports  = Channel.empty()
