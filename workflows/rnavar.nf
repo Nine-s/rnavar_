@@ -119,7 +119,7 @@ def multiqc_report = []
 
 workflow RNAVAR {
 
-    ch_input_bam_files  = Channel.fromPath(params.input_bam).collect().view()
+    ch_input_bam_files  = Channel.fromPath(params.input_bam).view()
 
     // To gather all QC reports for MultiQC
     ch_reports  = Channel.empty()
@@ -136,7 +136,7 @@ workflow RNAVAR {
     ch_versions = ch_versions.mix(PREPARE_GENOME.out.versions)
 
 
-    ch_input_bam = ch_input_bam_files.each { it -> [ meta: [id: it.baseName], bam: it ] }.view()
+    ch_input_bam = ch_input_bam_files.each { it -> [ meta: [id: it.baseName], bam: it ] }
 
     //ch_input_bam = ch_input_bam_files
     ch_input_bam.view()
