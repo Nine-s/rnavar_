@@ -137,8 +137,8 @@ workflow RNAVAR {
 
     ch_input_bam_files.flatMap {
          it -> [ meta: it.baseName, bam: it ] }
-         .set { ch_input_bam }.view()
-         
+         .view()
+    //.set { ch_input_bam }
     //
     // MODULE: Prepare the interval list from the GTF file using GATK4 BedToIntervalList
     //
