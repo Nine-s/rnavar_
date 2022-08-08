@@ -140,6 +140,7 @@ workflow RNAVAR {
     .map {
         meta, bam ->
            [ meta_clone, bam ]
+    }
     .groupTuple(by: [0])
     .branch {
         meta, bam ->
