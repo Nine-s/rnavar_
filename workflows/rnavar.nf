@@ -140,6 +140,7 @@ workflow RNAVAR {
 
     //ch_input_bam = ch_input_bam_files
     ch_input_bam.view()
+    log.error(ch_input_bam as String)
     // MODULE: Prepare the interval list from the GTF file using GATK4 BedToIntervalList
     //
     ch_interval_list = Channel.empty()
@@ -166,7 +167,7 @@ workflow RNAVAR {
     // SUBWORKFLOW: Mark duplicates with GATK4
     //
     MARKDUPLICATES (
-        ch_input_bam.multiple
+        ch_input_bam//.multiple
     )
     ch_input_bam             = MARKDUPLICATES.out.bam_bai
 
