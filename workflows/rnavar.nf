@@ -140,6 +140,9 @@ workflow RNAVAR {
          .view()
     //.set { ch_input_bam }
     //
+
+    ch_input_bam = ch_input_bam_files
+
     // MODULE: Prepare the interval list from the GTF file using GATK4 BedToIntervalList
     //
     ch_interval_list = Channel.empty()
