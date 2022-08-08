@@ -135,13 +135,17 @@ workflow RNAVAR {
     ch_genome_bed = Channel.from([id:'genome.bed']).combine(PREPARE_GENOME.out.exon_bed)
     ch_versions = ch_versions.mix(PREPARE_GENOME.out.versions)
 
-    ch_input_bam_files.flatMap {
-         it -> [ meta.id: it.baseName, bam: it ] }
-         .view()
-    //.set { ch_input_bam }
+
+    ch_input_bam_files.flatMap { it -> [ meta:[id: it.baseName], bam: it ] }.set { ch_input_bam }.view()
+    // ch_input_bam_files.flatMap {
+    //      it -> [ meta: it.baseName, bam: it ] }
+    //      .view()
+    // .set { ch_input_bam }
     //
 
-    ch_input_bam = ch_input_bam_files
+    // ch_input_bam_files.map{
+    //     TODOOOOO
+    // }.set{ch_input_bam}
 
     // MODULE: Prepare the interval list from the GTF file using GATK4 BedToIntervalList
     //
