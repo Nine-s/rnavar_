@@ -135,14 +135,13 @@ workflow RNAVAR {
     ch_genome_bed = Channel.from([id:'genome.bed']).combine(PREPARE_GENOME.out.exon_bed)
     ch_versions = ch_versions.mix(PREPARE_GENOME.out.versions)
 
-    ch_input_bam_files.map {
-        meta, bam ->
-            def meta_clone = [id: bam.baseName]
-            //meta_clone.id = bam.baseName //meta_clone.id.split('_')[0..-2].join('_')
-            [ meta_clone, bam ]
-    }
-    .groupTuple(by: [0])
-    .set { ch_input_bam }.view()
+    // ch_input_bam_files.map {
+    //     meta, bam ->
+    //         def meta_clone = [id: bam.baseName]
+    //         meta_clone.id = bam.baseName //meta_clone.id.split('_')[0..-2].join('_')
+    //         [ meta_clone, bam ]
+    // }
+    // .groupTuple(by: [0])
     // .branch {
     //     meta, bam ->
     //         single  : bam.size() == 1
@@ -150,8 +149,8 @@ workflow RNAVAR {
     //         multiple: bam.size() > 1
     //             return [ meta, bam.flatten() ]
     // }
-    
-    
+    // .set { ch_input_bam }.view()
+    ch_input_bam_files.flatMap { it -> [ meta.id: it.baseName, bam: it ] }.set { ch_input_bam }.view()
 
     //
     // SUBWORKFLOW: Read in samplesheet, validate and stage input files
