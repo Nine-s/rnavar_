@@ -146,7 +146,6 @@ workflow RNAVAR {
             multiple: bam.size() > 1
                 return [ meta, bam.flatten() ]
     }
-    .view()
     // }
     // .view()
     // .set{ch_input_bam}
@@ -160,6 +159,7 @@ workflow RNAVAR {
     //     TODOOOOO
     // }.set{ch_input_bam}
     ch_input_bam = ch_input_bam_files
+    ch_input_bam.view()
     // MODULE: Prepare the interval list from the GTF file using GATK4 BedToIntervalList
     //
     ch_interval_list = Channel.empty()
