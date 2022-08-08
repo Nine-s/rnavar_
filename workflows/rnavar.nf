@@ -248,196 +248,196 @@ workflow RNAVAR {
         //
         // SUBWORKFLOW: Mark duplicates with GATK4
         //
-        MARKDUPLICATES (
-            ch_input_bam.multiple
-        )
-        ch_input_bam             = MARKDUPLICATES.out.bam_bai
+    MARKDUPLICATES (
+        ch_input_bam.multiple
+    )
+    ch_input_bam             = MARKDUPLICATES.out.bam_bai
 
-        //Gather QC reports
-        //ch_reports                = ch_reports.mix(MARKDUPLICATES.out.stats.collect{it[1]}.ifEmpty([]))
-        ch_reports                = ch_reports.mix(MARKDUPLICATES.out.metrics.collect{it[1]}.ifEmpty([]))
-        ch_versions               = ch_versions.mix(MARKDUPLICATES.out.versions.first().ifEmpty(null))
+    //Gather QC reports
+    //ch_reports                = ch_reports.mix(MARKDUPLICATES.out.stats.collect{it[1]}.ifEmpty([]))
+    ch_reports                = ch_reports.mix(MARKDUPLICATES.out.metrics.collect{it[1]}.ifEmpty([]))
+    ch_versions               = ch_versions.mix(MARKDUPLICATES.out.versions.first().ifEmpty(null))
 
-        //
-        // SUBWORKFLOW: SplitNCigarReads from GATK4 over the intervals
-        // Splits reads that contain Ns in their cigar string (e.g. spanning splicing events in RNAseq data).
-        //
-        ch_splitncigar_bam_bai = Channel.empty()
-        SPLITNCIGAR (
-            ch_input_bam,
+    //
+    // SUBWORKFLOW: SplitNCigarReads from GATK4 over the intervals
+    // Splits reads that contain Ns in their cigar string (e.g. spanning splicing events in RNAseq data).
+    //
+    ch_splitncigar_bam_bai = Channel.empty()
+    SPLITNCIGAR (
+        ch_input_bam,
+        PREPARE_GENOME.out.fasta,
+        PREPARE_GENOME.out.fai,
+        PREPARE_GENOME.out.dict,
+        ch_interval_list_split
+    )
+    ch_splitncigar_bam_bai  = SPLITNCIGAR.out.bam_bai
+    ch_versions             = ch_versions.mix(SPLITNCIGAR.out.versions.first().ifEmpty(null))
+
+    //
+    // MODULE: BaseRecalibrator from GATK4
+    // Generates a recalibration table based on various co-variates
+    //
+    ch_bam_variant_calling = Channel.empty()
+    if(!params.skip_baserecalibration) {
+        ch_bqsr_table   = Channel.empty()
+        // known_sites is made by grouping both the dbsnp and the known indels ressources
+        // they can either or both be optional
+        ch_known_sites     = ch_dbsnp.concat(ch_known_indels).collect()
+        ch_known_sites_tbi = ch_dbsnp_tbi.concat(ch_known_indels_tbi).collect()
+
+        ch_interval_list_recalib = ch_interval_list.map{ meta, bed -> [bed] }.flatten()
+        ch_splitncigar_bam_bai.combine(ch_interval_list_recalib)
+            .map{ meta, bam, bai, interval -> [ meta, bam, bai, interval]
+        }.set{ch_splitncigar_bam_bai_interval}
+
+        GATK4_BASERECALIBRATOR(
+            ch_splitncigar_bam_bai_interval,
             PREPARE_GENOME.out.fasta,
             PREPARE_GENOME.out.fai,
             PREPARE_GENOME.out.dict,
-            ch_interval_list_split
+            ch_known_sites,
+            ch_known_sites_tbi
         )
-        ch_splitncigar_bam_bai  = SPLITNCIGAR.out.bam_bai
-        ch_versions             = ch_versions.mix(SPLITNCIGAR.out.versions.first().ifEmpty(null))
-
-        //
-        // MODULE: BaseRecalibrator from GATK4
-        // Generates a recalibration table based on various co-variates
-        //
-        ch_bam_variant_calling = Channel.empty()
-        if(!params.skip_baserecalibration) {
-            ch_bqsr_table   = Channel.empty()
-            // known_sites is made by grouping both the dbsnp and the known indels ressources
-            // they can either or both be optional
-            ch_known_sites     = ch_dbsnp.concat(ch_known_indels).collect()
-            ch_known_sites_tbi = ch_dbsnp_tbi.concat(ch_known_indels_tbi).collect()
-
-            ch_interval_list_recalib = ch_interval_list.map{ meta, bed -> [bed] }.flatten()
-            ch_splitncigar_bam_bai.combine(ch_interval_list_recalib)
-                .map{ meta, bam, bai, interval -> [ meta, bam, bai, interval]
-            }.set{ch_splitncigar_bam_bai_interval}
-
-            GATK4_BASERECALIBRATOR(
-                ch_splitncigar_bam_bai_interval,
-                PREPARE_GENOME.out.fasta,
-                PREPARE_GENOME.out.fai,
-                PREPARE_GENOME.out.dict,
-                ch_known_sites,
-                ch_known_sites_tbi
-            )
-            ch_bqsr_table   = GATK4_BASERECALIBRATOR.out.table
-
-            // Gather QC reports
-            ch_reports  = ch_reports.mix(ch_bqsr_table.map{ meta, table -> table})
-            ch_versions     = ch_versions.mix(GATK4_BASERECALIBRATOR.out.versions.first().ifEmpty(null))
-
-            ch_bam_applybqsr       = ch_splitncigar_bam_bai.join(ch_bqsr_table, by: [0])
-            ch_bam_recalibrated_qc = Channel.empty()
-
-            ch_interval_list_applybqsr = ch_interval_list.map{ meta, bed -> [bed] }.flatten()
-            ch_bam_applybqsr.combine(ch_interval_list_applybqsr)
-                .map{ meta, bam, bai, table, interval -> [ meta, bam, bai, table, interval]
-            }.set{ch_applybqsr_bam_bai_interval}
-
-            //
-            // MODULE: ApplyBaseRecalibrator from GATK4
-            // Recalibrates the base qualities of the input reads based on the recalibration table produced by the GATK BaseRecalibrator tool.
-            //
-            RECALIBRATE(
-                params.skip_multiqc,
-                ch_applybqsr_bam_bai_interval,
-                PREPARE_GENOME.out.dict,
-                PREPARE_GENOME.out.fai,
-                PREPARE_GENOME.out.fasta
-            )
-
-            ch_bam_variant_calling = RECALIBRATE.out.bam
-            ch_bam_recalibrated_qc = RECALIBRATE.out.qc
-
-            // Gather QC reports
-            ch_reports  = ch_reports.mix(RECALIBRATE.out.qc.collect{it[1]}.ifEmpty([]))
-            ch_versions = ch_versions.mix(RECALIBRATE.out.versions.first().ifEmpty(null))
-        } else {
-            ch_bam_variant_calling = ch_splitncigar_bam_bai
-        }
-
-        interval_flag = params.no_intervals
-        // Run haplotyper even in the absence of dbSNP files
-        if (!params.dbsnp){
-            ch_dbsnp = []
-            ch_dbsnp_tbi = []
-        }
-
-        ch_haplotypecaller_vcf = Channel.empty()
-        ch_haplotypecaller_interval_bam = ch_bam_variant_calling.combine(ch_interval_list_split)
-            .map{ meta, bam, bai, interval_list ->
-                new_meta = meta.clone()
-                new_meta.id = meta.id + "_" + interval_list.baseName
-                new_meta.sample = meta.id
-                [new_meta, bam, bai, interval_list]
-            }
-
-        //
-        // MODULE: HaplotypeCaller from GATK4
-        // Calls germline SNPs and indels via local re-assembly of haplotypes.
-        //
-        GATK4_HAPLOTYPECALLER(
-            ch_haplotypecaller_interval_bam,
-            PREPARE_GENOME.out.fasta,
-            PREPARE_GENOME.out.fai,
-            PREPARE_GENOME.out.dict,
-            ch_dbsnp,
-            ch_dbsnp_tbi
-        )
-
-        ch_haplotypecaller_raw = GATK4_HAPLOTYPECALLER.out.vcf
-            .map{ meta, vcf ->
-                meta.id = meta.sample
-                [meta, vcf]}
-            .groupTuple()
-
-        ch_versions  = ch_versions.mix(GATK4_HAPLOTYPECALLER.out.versions.first().ifEmpty(null))
-
-        //
-        // MODULE: MergeVCFS from GATK4
-        // Merge multiple VCF files into one VCF
-        //
-        GATK4_MERGEVCFS(
-            ch_haplotypecaller_raw,
-            PREPARE_GENOME.out.dict
-        )
-        ch_haplotypecaller_vcf = GATK4_MERGEVCFS.out.vcf
-        ch_versions  = ch_versions.mix(GATK4_MERGEVCFS.out.versions.first().ifEmpty(null))
-
-        //
-        // MODULE: Index the VCF using TABIX
-        //
-        TABIX(
-            ch_haplotypecaller_vcf
-        )
-
-        ch_haplotypecaller_vcf_tbi = ch_haplotypecaller_vcf
-            .join(TABIX.out.tbi, by: [0], remainder: true)
-            .join(TABIX.out.csi, by: [0], remainder: true)
-            .map{meta, vcf, tbi, csi ->
-                if (tbi) [meta, vcf, tbi]
-                else [meta, vcf, csi]
-            }
-
-        ch_versions     = ch_versions.mix(TABIX.out.versions.first().ifEmpty(null))
-        ch_final_vcf    = ch_haplotypecaller_vcf
-
-        //
-        // MODULE: VariantFiltration from GATK4
-        // Filter variant calls based on certain criteria
-        //
-        //if (!params.skip_variantfiltration && !params.bam_csi_index ) {
-
-        GATK4_VARIANTFILTRATION(
-            ch_haplotypecaller_vcf_tbi,
-            PREPARE_GENOME.out.fasta,
-            PREPARE_GENOME.out.fai,
-            PREPARE_GENOME.out.dict
-        )
-
-        ch_filtered_vcf = GATK4_VARIANTFILTRATION.out.vcf
-        ch_final_vcf    = ch_filtered_vcf
-        ch_versions     = ch_versions.mix(GATK4_VARIANTFILTRATION.out.versions.first().ifEmpty(null))
-        //}
-
-        //
-        // SUBWORKFLOW: Annotate variants using snpEff and Ensembl VEP if enabled.
-        //
-        //if((!params.skip_variantannotation) && (params.annotate_tools) && (params.annotate_tools.contains('merge') || params.annotate_tools.contains('snpeff') || params.annotate_tools.contains('vep'))) {
-        ANNOTATE(
-            ch_final_vcf,
-            params.annotate_tools,
-            ch_snpeff_db,
-            ch_snpeff_cache,
-            ch_vep_genome,
-            ch_vep_species,
-            ch_vep_cache_version,
-            ch_vep_cache)
+        ch_bqsr_table   = GATK4_BASERECALIBRATOR.out.table
 
         // Gather QC reports
-        ch_reports  = ch_reports.mix(ANNOTATE.out.reports)
-        ch_versions = ch_versions.mix(ANNOTATE.out.versions.first().ifEmpty(null))
-        //}
+        ch_reports  = ch_reports.mix(ch_bqsr_table.map{ meta, table -> table})
+        ch_versions     = ch_versions.mix(GATK4_BASERECALIBRATOR.out.versions.first().ifEmpty(null))
 
-    
+        ch_bam_applybqsr       = ch_splitncigar_bam_bai.join(ch_bqsr_table, by: [0])
+        ch_bam_recalibrated_qc = Channel.empty()
+
+        ch_interval_list_applybqsr = ch_interval_list.map{ meta, bed -> [bed] }.flatten()
+        ch_bam_applybqsr.combine(ch_interval_list_applybqsr)
+            .map{ meta, bam, bai, table, interval -> [ meta, bam, bai, table, interval]
+        }.set{ch_applybqsr_bam_bai_interval}
+
+        //
+        // MODULE: ApplyBaseRecalibrator from GATK4
+        // Recalibrates the base qualities of the input reads based on the recalibration table produced by the GATK BaseRecalibrator tool.
+        //
+        RECALIBRATE(
+            params.skip_multiqc,
+            ch_applybqsr_bam_bai_interval,
+            PREPARE_GENOME.out.dict,
+            PREPARE_GENOME.out.fai,
+            PREPARE_GENOME.out.fasta
+        )
+
+        ch_bam_variant_calling = RECALIBRATE.out.bam
+        ch_bam_recalibrated_qc = RECALIBRATE.out.qc
+
+        // Gather QC reports
+        ch_reports  = ch_reports.mix(RECALIBRATE.out.qc.collect{it[1]}.ifEmpty([]))
+        ch_versions = ch_versions.mix(RECALIBRATE.out.versions.first().ifEmpty(null))
+    } else {
+        ch_bam_variant_calling = ch_splitncigar_bam_bai
+    }
+
+    interval_flag = params.no_intervals
+    // Run haplotyper even in the absence of dbSNP files
+    if (!params.dbsnp){
+        ch_dbsnp = []
+        ch_dbsnp_tbi = []
+    }
+
+    ch_haplotypecaller_vcf = Channel.empty()
+    ch_haplotypecaller_interval_bam = ch_bam_variant_calling.combine(ch_interval_list_split)
+        .map{ meta, bam, bai, interval_list ->
+            new_meta = meta.clone()
+            new_meta.id = meta.id + "_" + interval_list.baseName
+            new_meta.sample = meta.id
+            [new_meta, bam, bai, interval_list]
+        }
+
+    //
+    // MODULE: HaplotypeCaller from GATK4
+    // Calls germline SNPs and indels via local re-assembly of haplotypes.
+    //
+    GATK4_HAPLOTYPECALLER(
+        ch_haplotypecaller_interval_bam,
+        PREPARE_GENOME.out.fasta,
+        PREPARE_GENOME.out.fai,
+        PREPARE_GENOME.out.dict,
+        ch_dbsnp,
+        ch_dbsnp_tbi
+    )
+
+    ch_haplotypecaller_raw = GATK4_HAPLOTYPECALLER.out.vcf
+        .map{ meta, vcf ->
+            meta.id = meta.sample
+            [meta, vcf]}
+        .groupTuple()
+
+    ch_versions  = ch_versions.mix(GATK4_HAPLOTYPECALLER.out.versions.first().ifEmpty(null))
+
+    //
+    // MODULE: MergeVCFS from GATK4
+    // Merge multiple VCF files into one VCF
+    //
+    GATK4_MERGEVCFS(
+        ch_haplotypecaller_raw,
+        PREPARE_GENOME.out.dict
+    )
+    ch_haplotypecaller_vcf = GATK4_MERGEVCFS.out.vcf
+    ch_versions  = ch_versions.mix(GATK4_MERGEVCFS.out.versions.first().ifEmpty(null))
+
+    //
+    // MODULE: Index the VCF using TABIX
+    //
+    TABIX(
+        ch_haplotypecaller_vcf
+    )
+
+    ch_haplotypecaller_vcf_tbi = ch_haplotypecaller_vcf
+        .join(TABIX.out.tbi, by: [0], remainder: true)
+        .join(TABIX.out.csi, by: [0], remainder: true)
+        .map{meta, vcf, tbi, csi ->
+            if (tbi) [meta, vcf, tbi]
+            else [meta, vcf, csi]
+        }
+
+    ch_versions     = ch_versions.mix(TABIX.out.versions.first().ifEmpty(null))
+    ch_final_vcf    = ch_haplotypecaller_vcf
+
+    //
+    // MODULE: VariantFiltration from GATK4
+    // Filter variant calls based on certain criteria
+    //
+    //if (!params.skip_variantfiltration && !params.bam_csi_index ) {
+
+    GATK4_VARIANTFILTRATION(
+        ch_haplotypecaller_vcf_tbi,
+        PREPARE_GENOME.out.fasta,
+        PREPARE_GENOME.out.fai,
+        PREPARE_GENOME.out.dict
+    )
+
+    ch_filtered_vcf = GATK4_VARIANTFILTRATION.out.vcf
+    ch_final_vcf    = ch_filtered_vcf
+    ch_versions     = ch_versions.mix(GATK4_VARIANTFILTRATION.out.versions.first().ifEmpty(null))
+    //}
+
+    //
+    // SUBWORKFLOW: Annotate variants using snpEff and Ensembl VEP if enabled.
+    //
+    //if((!params.skip_variantannotation) && (params.annotate_tools) && (params.annotate_tools.contains('merge') || params.annotate_tools.contains('snpeff') || params.annotate_tools.contains('vep'))) {
+    ANNOTATE(
+        ch_final_vcf,
+        params.annotate_tools,
+        ch_snpeff_db,
+        ch_snpeff_cache,
+        ch_vep_genome,
+        ch_vep_species,
+        ch_vep_cache_version,
+        ch_vep_cache)
+
+    // Gather QC reports
+    ch_reports  = ch_reports.mix(ANNOTATE.out.reports)
+    ch_versions = ch_versions.mix(ANNOTATE.out.versions.first().ifEmpty(null))
+    //}
+
+
 
     ch_version_yaml = Channel.empty()
     CUSTOM_DUMPSOFTWAREVERSIONS (ch_versions.unique().collectFile(name: 'collated_versions.yml'))
