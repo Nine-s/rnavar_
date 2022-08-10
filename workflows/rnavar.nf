@@ -150,7 +150,8 @@ workflow RNAVAR {
                 return [ meta, fastq.flatten() ]
     }
     .set { ch_input_bam }
-    ch_input_bam.view()
+    //ch_input_bam.view()
+    log.error(ch_input_bam as String)
     log.error(ch_input_bam.meta as String)
 
     //
