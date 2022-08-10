@@ -152,7 +152,7 @@ workflow RNAVAR {
     .set { ch_input_bam }
     //ch_input_bam.view()
     log.error(ch_input_bam as String)
-    log.error(ch_input_bam.meta as String)
+    //log.error(ch_input_bam.meta as String)
 
     //
     // SUBWORKFLOW: Uncompress and prepare reference genome files
