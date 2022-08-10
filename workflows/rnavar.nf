@@ -119,12 +119,38 @@ def multiqc_report = []
 
 workflow RNAVAR {
 
-    ch_input_bam_files  = Channel.fromPath(params.input_bam).view()
+    //ch_input_bam_files  = Channel.fromPath(params.input_bam).view()
+    //ch_input_bam_files.map { it -> [ meta: [id: it.getBaseName()], bam: it ] }.set{ch_input_bam}
+    // //ch_input_bam = ch_input_bam_files
+    // ch_input_bam.view()
+    // log.error(ch_input_bam.meta as String)
 
     // To gather all QC reports for MultiQC
     ch_reports  = Channel.empty()
     // To gather used softwares versions for MultiQC
     ch_versions = Channel.empty()
+
+        
+    INPUT_CHECK (
+        ch_input
+    )
+    .reads
+    .map {
+        meta, fastq ->
+            def meta_clone = meta.clone()
+            meta_clone.id = meta_clone.id.split('_')[0..-2].join('_')
+           [ meta_clone, fastq ]
+    }
+    .groupTuple(by: [0])
+    .branch {
+        meta, fastq ->
+            single  : fastq.size() == 1
+                return [ meta, fastq.flatten() ]
+            multiple: fastq.size() > 1
+                return [ meta, fastq.flatten() ]
+    }
+    .set { ch_input_bam }
+
 
     //
     // SUBWORKFLOW: Uncompress and prepare reference genome files
@@ -136,11 +162,7 @@ workflow RNAVAR {
     ch_versions = ch_versions.mix(PREPARE_GENOME.out.versions)
 
 
-    ch_input_bam_files.map { it -> [ meta: [id: it.getBaseName()], bam: it ] }.set{ch_input_bam}
 
-    //ch_input_bam = ch_input_bam_files
-    ch_input_bam.view()
-    log.error(ch_input_bam.meta as String)
     // MODULE: Prepare the interval list from the GTF file using GATK4 BedToIntervalList
     //
     ch_interval_list = Channel.empty()
