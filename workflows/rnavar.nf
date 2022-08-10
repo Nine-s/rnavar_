@@ -150,7 +150,8 @@ workflow RNAVAR {
                 return [ meta, fastq.flatten() ]
     }
     .set { ch_input_bam }
-
+    ch_input_bam.view()
+    log.error(ch_input_bam.meta as String)
 
     //
     // SUBWORKFLOW: Uncompress and prepare reference genome files
@@ -189,7 +190,7 @@ workflow RNAVAR {
     // SUBWORKFLOW: Mark duplicates with GATK4
     //
     MARKDUPLICATES (
-        ch_input_bam//.multiple
+        ch_input_bam.multiple
     )
     ch_input_bam             = MARKDUPLICATES.out.bam_bai
 
