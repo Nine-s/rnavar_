@@ -18,7 +18,7 @@ process SAMPLESHEET_CHECK {
 
     script: // This script is bundled with the pipeline, in nf-core/rnavar/bin/
     """
-    echo "ok"
+    cp $samplesheet samplesheet.valid.csv
     """
     // """
     // check_samplesheet.py \\
